@@ -33,7 +33,7 @@ public abstract class AbstractDBHelper extends SQLiteOpenHelper {
         );
         sqLiteDatabase.execSQL(
                 "CREATE TABLE transactions " +
-                        "(accountNo TEXT NOT NULL, type INTEGER NOT NULL,date TEXT NOT NULL,amount REAL NOT NULL)"
+                        "(accountNo TEXT NOT NULL, type INTEGER NOT NULL,date TEXT NOT NULL,amount REAL NOT NULL, FOREIGN KEY (accountNo) REFERENCES accounts(accountNo))"
         );
     }
 
@@ -44,4 +44,6 @@ public abstract class AbstractDBHelper extends SQLiteOpenHelper {
         sqLiteDatabase.execSQL("DROP TABLE IF EXISTS accounts");
         onCreate(sqLiteDatabase);
     }
+
+
 }
