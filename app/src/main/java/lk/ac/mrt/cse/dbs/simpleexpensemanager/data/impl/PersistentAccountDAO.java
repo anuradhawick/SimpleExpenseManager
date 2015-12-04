@@ -3,8 +3,7 @@ package lk.ac.mrt.cse.dbs.simpleexpensemanager.data.impl;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
-import android.util.Log;
+import android.database.sqlite.SQLiteException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,43 +16,16 @@ import lk.ac.mrt.cse.dbs.simpleexpensemanager.data.model.ExpenseType;
 /**
  * Created by Anuradha Sanjeewa on 03/12/2015.
  */
-public class PersistentAccountDAO extends SQLiteOpenHelper implements AccountDAO {
-    public static final String DATABASE_NAME = "130647R.db";
-
-    public static final String ACC_TABLE_NAME = "accounts";
-    public static final String ACC_NO_COLUMN_ID = "accountNo";
-    public static final String BANK_NAME_COLUMN_NAME = "bankName";
-    public static final String ACC_HOLDER_COLUMN_NAME = "accountHolderName";
-    public static final String BALANCE_COLUMN_NAME = "balance";
-
-    @Override
-    public void onCreate(SQLiteDatabase sqLiteDatabase) {
-        sqLiteDatabase.execSQL(
-                "CREATE TABLE accounts " +
-                        "(accountNo TEXT PRIMARY KEY NOT NULL, bankName TEXT NOT NULL,accountHolderName TEXT NOT NULL,balance REAL NOT NULL)"
-        );
-        sqLiteDatabase.execSQL(
-                "CREATE TABLE transactions " +
-                        "(accountNo TEXT NOT NULL, type INTEGER NOT NULL,date TEXT NOT NULL,amount REAL NOT NULL)"
-        );
-    }
-
-    @Override
-    public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {
-        sqLiteDatabase.execSQL("DROP TABLE IF EXISTS accounts");
-        onCreate(sqLiteDatabase);
-        sqLiteDatabase.execSQL("DROP TABLE IF EXISTS transactions");
-        onCreate(sqLiteDatabase);
-    }
+public class PersistentAccountDAO extends AbstractDBHelper implements AccountDAO {
 
     public PersistentAccountDAO(Context context) {
-        super(context, DATABASE_NAME, null, 1);
+        super(context);
     }
 
     @Override
     public List<String> getAccountNumbersList() {
         // Return the list of account numbers
-        List<String> accNums = new ArrayList<String>();
+        List<String> accNums = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
         String query = "SELECT accountNo FROM accounts";
         Cursor res = db.rawQuery(query, null);
@@ -112,7 +84,7 @@ public class PersistentAccountDAO extends SQLiteOpenHelper implements AccountDAO
         SQLiteDatabase db = this.getWritableDatabase();
         try {
             db.delete(ACC_TABLE_NAME, ACC_NO_COLUMN_ID + "=?", new String[]{accountNo});
-        } catch (Exception e) {
+        } catch (SQLiteException e) {
             String msg = "Account " + accountNo + " is invalid.";
             throw new InvalidAccountException(msg);
         } finally {
@@ -133,16 +105,9 @@ public class PersistentAccountDAO extends SQLiteOpenHelper implements AccountDAO
             // specific implementation based on the transaction type
             res.moveToFirst();
             double bal = res.getDouble(res.getColumnIndex(BALANCE_COLUMN_NAME));
-            switch (expenseType) {
-                case EXPENSE:
-                    db.execSQL("UPDATE accounts SET balance = ? WHERE accountNo = ?", new String[]{String.valueOf(bal - amount), accountNo});
-                    break;
-                case INCOME:
-                    db.execSQL("UPDATE accounts SET balance = ? WHERE accountNo = ?", new String[]{String.valueOf(bal + amount), accountNo});
-                    break;
-            }
+            db.execSQL("UPDATE accounts SET balance = ? WHERE accountNo = ?",(expenseType==ExpenseType.EXPENSE)? new String[]{String.valueOf(bal - amount)}: new String[]{String.valueOf(bal + amount), accountNo});
         } catch (Exception e) {
-
+            // Do nothing
         } finally {
             db.close();
         }

@@ -3,8 +3,9 @@ package lk.ac.mrt.cse.dbs.simpleexpensemanager.data.impl;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
+import android.database.sqlite.SQLiteException;
 
+import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -18,37 +19,10 @@ import lk.ac.mrt.cse.dbs.simpleexpensemanager.data.model.Transaction;
 /**
  * Created by Anuradha Sanjeewa on 03/12/2015.
  */
-public class PersistentTransactionDAO extends SQLiteOpenHelper implements TransactionDAO {
-    public static final String DATABASE_NAME = "130647R.db";
-
-    public static final String TR_TABLE_NAME = "transactions";
-    public static final String ACC_NO_COLUMN_ID = "accountNo";
-    public static final String EX_TYPE_COLUMN_NAME = "type";
-    public static final String AMT_COLUMN_NAME = "amount";
-    public static final String DATE_COLUMN_NAME = "date";
+public class PersistentTransactionDAO extends AbstractDBHelper implements TransactionDAO {
 
     public PersistentTransactionDAO(Context context) {
-        super(context, DATABASE_NAME, null, 1);
-    }
-
-    @Override
-    public void onCreate(SQLiteDatabase sqLiteDatabase) {
-        sqLiteDatabase.execSQL(
-                "CREATE TABLE transactions " +
-                        "(accountNo TEXT NOT NULL, type INTEGER NOT NULL,date TEXT NOT NULL,amount REAL NOT NULL)"
-        );
-        sqLiteDatabase.execSQL(
-                "CREATE TABLE accounts " +
-                        "(accountNo TEXT PRIMARY KEY NOT NULL, bankName TEXT NOT NULL,accountHolderName TEXT NOT NULL,balance REAL NOT NULL)"
-        );
-    }
-
-    @Override
-    public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {
-        sqLiteDatabase.execSQL("DROP TABLE IF EXISTS transactions");
-        onCreate(sqLiteDatabase);
-        sqLiteDatabase.execSQL("DROP TABLE IF EXISTS accounts");
-        onCreate(sqLiteDatabase);
+        super(context);
     }
 
     @Override
@@ -58,16 +32,9 @@ public class PersistentTransactionDAO extends SQLiteOpenHelper implements Transa
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
         String dateString = sdf.format(date);
         try {
-            switch (expenseType) {
-                case EXPENSE:
-                    db.execSQL(query, new String[]{accountNo, String.valueOf(1), dateString, String.valueOf(amount)});
-                    break;
-                case INCOME:
-                    db.execSQL(query, new String[]{accountNo, String.valueOf(2), dateString, String.valueOf(amount)});
-                    break;
-            }
+            db.execSQL(query, new String[]{accountNo, (expenseType == ExpenseType.EXPENSE) ? String.valueOf(1) : String.valueOf(2), dateString, String.valueOf(amount)});
         } catch (Exception e) {
-
+            // Do nothing
         } finally {
             db.close();
         }
@@ -76,7 +43,7 @@ public class PersistentTransactionDAO extends SQLiteOpenHelper implements Transa
 
     @Override
     public List<Transaction> getAllTransactionLogs() {
-        List<Transaction> lst = new ArrayList<Transaction>();
+        List<Transaction> lst = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
         Cursor res = db.rawQuery("SELECT * FROM transactions ORDER BY date(`date`) DESC", null);
         res.moveToFirst();
@@ -86,7 +53,7 @@ public class PersistentTransactionDAO extends SQLiteOpenHelper implements Transa
             try {
                 d = sdf.parse(res.getString(res.getColumnIndex(DATE_COLUMN_NAME)));
             } catch (ParseException e) {
-                e.printStackTrace();
+                // Highly Unlikely Exception
             }
             lst.add(new Transaction(d, res.getString(res.getColumnIndex(ACC_NO_COLUMN_ID)), (res.getInt(res.getColumnIndex(EX_TYPE_COLUMN_NAME)) == 1) ? ExpenseType.EXPENSE : ExpenseType.INCOME, res.getDouble(res.getColumnIndex(AMT_COLUMN_NAME))));
             res.moveToNext();
@@ -97,7 +64,7 @@ public class PersistentTransactionDAO extends SQLiteOpenHelper implements Transa
 
     @Override
     public List<Transaction> getPaginatedTransactionLogs(int limit) {
-        List<Transaction> lst = new ArrayList<Transaction>();
+        List<Transaction> lst = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
         try {
             Cursor res = db.rawQuery("SELECT * FROM transactions ORDER BY date(`date`) DESC LIMIT " + limit, null);
@@ -108,17 +75,16 @@ public class PersistentTransactionDAO extends SQLiteOpenHelper implements Transa
                 try {
                     d = sdf.parse(res.getString(res.getColumnIndex(DATE_COLUMN_NAME)));
                 } catch (ParseException e) {
-                    e.printStackTrace();
+                    // Highly Unlikely Exception
                 }
                 lst.add(new Transaction(d, res.getString(res.getColumnIndex(ACC_NO_COLUMN_ID)), (res.getInt(res.getColumnIndex(EX_TYPE_COLUMN_NAME)) == 1) ? ExpenseType.EXPENSE : ExpenseType.INCOME, res.getDouble(res.getColumnIndex(AMT_COLUMN_NAME))));
                 res.moveToNext();
             }
         } catch (Exception e) {
-            return lst;
+            // Do nothing
         } finally {
             db.close();
         }
-
         return lst;
     }
 }
